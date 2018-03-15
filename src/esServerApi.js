@@ -20,13 +20,14 @@ class esServerApi{
         var client = this.createESConnection();
         return new Promise(function(resolve,reject){
             var from = prop.page === 1? 1: (prop.perPage * (prop.page-1))+1
+            var sortProperties = Object.keys(prop.sortingColumns);
             client.search({
                 index: 'bank',
                 type: 'account',
                 body: {
                 from: from,
                 size: prop.perPage,
-                sort: [{[prop.sortingColumns.property]:prop.sortingColumns.direction}],
+                sort: [{[sortProperties[0]]:prop.sortingColumns[sortProperties[0]].direction}],
                 query: {
                     match_all: {}
                 }

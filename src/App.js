@@ -2,20 +2,30 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import cx from 'classnames';
 import esServerApi  from './esServerApi';
-import $ from 'jquery';
 import * as resolve from 'table-resolver';
 import { bindMethods } from 'patternfly-react';
-import {  actionHeaderCellFormatter,
+import {
+  actionHeaderCellFormatter,
   customHeaderFormattersDefinition,
   selectionCellFormatter,
   selectionHeaderCellFormatter,
   sortableHeaderCellFormatter,
   tableCellFormatter,
   Table,
-  TABLE_SORT_DIRECTION } from 'patternfly-react';
+  TABLE_SORT_DIRECTION,
+  Button,
+  DropdownKebab,
+  Filter,
+  FormControl,
+  Icon,
+  MenuItem,
+  Sort,
+  Toolbar
+} from 'patternfly-react';
 import { Paginator, PAGINATION_VIEW } from 'patternfly-react';
 import logo from './logo.svg';
 import './css/patternfly.min.css';
+import './css/patternfly-additions.min.css';
 import './App.css';
 
 class App extends Component {
@@ -42,10 +52,10 @@ class App extends Component {
     this.state = {
       // Sort the first column in an ascending way by default.
       sortingColumns: {
-        name: {
+        account_number: {
           direction: TABLE_SORT_DIRECTION.ASC,
           position: 0
-        }
+        },
       },
 
       // column definitions
@@ -323,12 +333,13 @@ class App extends Component {
     // Clearing existing sortingColumns does simple single column sort. To do multisort,
     // set each column based on existing sorts specified and set sort position.
     const updatedSortingColumns = {
-        property: column.property,
+      [column.property]: {
         direction:
           sortDirection === TABLE_SORT_DIRECTION.ASC
             ? TABLE_SORT_DIRECTION.DESC
             : TABLE_SORT_DIRECTION.ASC,
         position: 0
+      }
     };
 
     this.getPage(updatedSortingColumns, this.state.pagination);
