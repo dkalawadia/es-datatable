@@ -307,11 +307,11 @@ class App extends Component {
       itemCount: 0,
 
       filterFields: [
-                      {title:"Account Number",id:"account_number",filterType: 'text'},
-                      {title:"Balance",id:"balance",filterType: 'text'},
+                      {title:"Account Number",id:"account_number",filterType: 'number'},
+                      {title:"Balance",id:"balance",filterType: 'number'},
                       {title:"First Name",id:"firstname",filterType: 'text'},
                       {title:"Last Name", id:"lastname",filterType: 'text'},
-                      {title:"Age",id:"age",filterType: 'text'},
+                      {title:"Age",id:"age",filterType: 'number'},
                       {title:"Gender",id:"gender",filterType: 'text'},
                       {title:"Address",id:"address",filterType: 'text'},
                       {title:"Employer",id:"employer",filterType: 'text'},
@@ -320,7 +320,7 @@ class App extends Component {
                       {title:"State",id:"state",filterType: 'text'}
                     ],
       
-      currentFilterType: {title:"Account Number",id:"account_number",filterType: 'text'},
+      currentFilterType: {title:"Account Number",id:"account_number",filterType: 'number'},
       activeFilters: [],
       currentValue: '',
       currentViewType: 'list'
@@ -333,6 +333,11 @@ class App extends Component {
     this.getPage(sortingColumns, pagination);
   }
 
+  componentDidUpdate(){
+    const { sortingColumns, pagination } = this.state;
+    //this.getPage(sortingColumns, pagination);
+  }
+
   getPage(sortingColumns, pagination) {
     const { onServerPageLogger } = this.props;
 
@@ -340,7 +345,8 @@ class App extends Component {
     const getPageArgs = {
       sortingColumns,
       page: pagination.page,
-      perPage: pagination.perPage
+      perPage: pagination.perPage,
+      activeFilters: this.state.activeFilters
     };
 
     //onServerPageLogger(getPageArgs);
@@ -393,6 +399,7 @@ class App extends Component {
       this.filterAdded(currentFilterType, currentValue);
       keyEvent.stopPropagation();
       keyEvent.preventDefault();
+      this.getPage(this.state.sortingColumns, this.state.pagination);
     }
   }
 
@@ -420,31 +427,23 @@ class App extends Component {
   clearFilters() {
     const { onFiltersChanged } = this.props;
     this.setState({ activeFilters: [] });
+    this.getPage(this.state.sortingColumns, this.state.pagination);
     onFiltersChanged && onFiltersChanged('Filters cleared.');
+    
   }
 
   filterAdded = (field, value) => {
     const { onFiltersChanged } = this.props;
-    let filterText = '';
-    if (field.title) {
-      filterText = field.title;
-    } else {
-      filterText = field;
+    if(field.filterType==="number"){
+      field['value']= parseInt(value);
+    }else{
+      field['value']=value.toLowerCase();
     }
-    filterText += ': ';
-
-    if (value.filterCategory) {
-      filterText += `${value.filterCategory.title ||
-        value.filterCategory}-${value.filterValue.title || value.filterValue}`;
-    } else if (value.title) {
-      filterText += value.title;
-    } else {
-      filterText += value;
-    }
-
-    const activeFilters = [...this.state.activeFilters, { label: filterText }];
-    this.setState({ activeFilters });
-    onFiltersChanged && onFiltersChanged(`Filter Added: ${filterText}`);
+    
+    const activeFilters = [field];
+    //this.setState({ activeFilters });
+    this.state.activeFilters.push(field);
+    onFiltersChanged && onFiltersChanged(`Filter Added: ${field}`);
   };
 
   filterCategorySelected(category) {
@@ -546,7 +545,7 @@ class App extends Component {
       <div className="App">
         <header className="App-header">
           <img src={logo} className="App-logo" alt="logo" />
-          <h1 className="App-title">Welcome to React</h1>
+          <h1 className="App-title">Data Browser</h1>
         </header>
         <p className="App-intro">
          
@@ -582,7 +581,7 @@ class App extends Component {
                     onRemove={this.removeFilter}
                     filterData={item}
                   >
-                    label={item.label}
+                    {item.id}:{item.value}
                   </Filter.Item>
                 ))}
               </Filter.List>

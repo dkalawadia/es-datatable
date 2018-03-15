@@ -16,21 +16,38 @@ class esServerApi{
         return client;
     }
 
+    createQuery(prop){
+        var query ={match_all: {}};
+        if(prop.activeFilters.length>0){
+            var filter = [];
+            $.each(prop.activeFilters,function(index,item){
+                filter.push({['term']:{[item.id]:item.value}});
+            })
+            query = {
+                "bool":{
+                    "must":filter
+                }
+            }
+        }
+        return query;
+        
+
+    }
     getPage(prop){
         var client = this.createESConnection();
+        var query = this.createQuery(prop);
         return new Promise(function(resolve,reject){
             var from = prop.page === 1? 1: (prop.perPage * (prop.page-1))+1
             var sortProperties = Object.keys(prop.sortingColumns);
+            
             client.search({
                 index: 'bank',
                 type: 'account',
                 body: {
-                from: from,
-                size: prop.perPage,
-                sort: [{[sortProperties[0]]:prop.sortingColumns[sortProperties[0]].direction}],
-                query: {
-                    match_all: {}
-                }
+                    from: from,
+                    size: prop.perPage,
+                    sort: [{[sortProperties[0]]:prop.sortingColumns[sortProperties[0]].direction}],
+                    query: query
                 }
             }).then(resp => {
                 var hits = resp.hits.hits;
