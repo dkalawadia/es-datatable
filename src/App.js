@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import cx from 'classnames';
 import esServerApi  from './esServerApi';
 import * as resolve from 'table-resolver';
-import { bindMethods } from 'patternfly-react';
+import { bindMethods,noop } from 'patternfly-react';
 import {
   actionHeaderCellFormatter,
   customHeaderFormattersDefinition,
@@ -46,7 +46,15 @@ class App extends Component {
       'customHeaderFormatters',
       'onPerPageSelect',
       'onPageSet',
-      'onSort'
+      'onSort',
+      'updateCurrentValue',
+      'onValueKeyPress',
+      'selectFilterType',
+      'filterValueSelected',
+      'filterCategorySelected',
+      'categoryValueSelected',
+      'removeFilter',
+      'clearFilters'
     ]);
 
     this.state = {
@@ -296,7 +304,27 @@ class App extends Component {
       },
 
       // server side pagination values
-      itemCount: 0
+      itemCount: 0,
+
+      filterFields: [
+                      {title:"Account Number",id:"account_number",filterType: 'text'},
+                      {title:"Balance",id:"balance",filterType: 'text'},
+                      {title:"First Name",id:"firstname",filterType: 'text'},
+                      {title:"Last Name", id:"lastname",filterType: 'text'},
+                      {title:"Age",id:"age",filterType: 'text'},
+                      {title:"Gender",id:"gender",filterType: 'text'},
+                      {title:"Address",id:"address",filterType: 'text'},
+                      {title:"Employer",id:"employer",filterType: 'text'},
+                      {title:"Email",id:"email",filterType: 'text'},
+                      {title:"City",id:"city",filterType: 'text'},
+                      {title:"State",id:"state",filterType: 'text'}
+                    ],
+      
+      currentFilterType: {title:"Account Number",id:"account_number",filterType: 'text'},
+      activeFilters: [],
+      currentValue: '',
+      currentViewType: 'list'
+      
     };
   }
 
@@ -357,8 +385,163 @@ class App extends Component {
     this.getPage(this.state.sortingColumns, newPaginationState);
   }
 
+  onValueKeyPress(keyEvent) {
+    const { currentValue, currentFilterType } = this.state;
+
+    if (keyEvent.key === 'Enter' && currentValue && currentValue.length > 0) {
+      this.setState({ currentValue: '' });
+      this.filterAdded(currentFilterType, currentValue);
+      keyEvent.stopPropagation();
+      keyEvent.preventDefault();
+    }
+  }
+
+  setViewType(viewType) {
+    const { onViewChanged } = this.props;
+    this.setState({ currentViewType: viewType });
+    onViewChanged && onViewChanged(viewType);
+  }
+
+  categoryValueSelected(value) {
+    const { currentValue, currentFilterType, filterCategory } = this.state;
+
+    if (filterCategory && currentValue !== value) {
+      this.setState({ currentValue: value });
+      if (value) {
+        const filterValue = {
+          filterCategory,
+          filterValue: value
+        };
+        this.filterAdded(currentFilterType, filterValue);
+      }
+    }
+  }
+
+  clearFilters() {
+    const { onFiltersChanged } = this.props;
+    this.setState({ activeFilters: [] });
+    onFiltersChanged && onFiltersChanged('Filters cleared.');
+  }
+
+  filterAdded = (field, value) => {
+    const { onFiltersChanged } = this.props;
+    let filterText = '';
+    if (field.title) {
+      filterText = field.title;
+    } else {
+      filterText = field;
+    }
+    filterText += ': ';
+
+    if (value.filterCategory) {
+      filterText += `${value.filterCategory.title ||
+        value.filterCategory}-${value.filterValue.title || value.filterValue}`;
+    } else if (value.title) {
+      filterText += value.title;
+    } else {
+      filterText += value;
+    }
+
+    const activeFilters = [...this.state.activeFilters, { label: filterText }];
+    this.setState({ activeFilters });
+    onFiltersChanged && onFiltersChanged(`Filter Added: ${filterText}`);
+  };
+
+  filterCategorySelected(category) {
+    const { filterCategory } = this.state;
+    if (filterCategory !== category) {
+      this.setState({ filterCategory: category });
+    }
+  }
+
+  filterValueSelected(filterValue) {
+    const { currentFilterType, currentValue } = this.state;
+
+    if (filterValue !== currentValue) {
+      this.setState({ currentValue: filterValue });
+      if (filterValue) {
+        this.filterAdded(currentFilterType, filterValue);
+      }
+    }
+  }
+
+  removeFilter(filter) {
+    const { onFiltersChanged } = this.props;
+    const { activeFilters } = this.state;
+
+    const index = activeFilters.indexOf(filter);
+    if (index > -1) {
+      const updated = [
+        ...activeFilters.slice(0, index),
+        ...activeFilters.slice(index + 1)
+      ];
+      this.setState({ activeFilters: updated });
+    }
+    onFiltersChanged && onFiltersChanged(`Filter Removed: ${filter.label}`);
+  }
+
+  selectFilterType(filterType) {
+    const { currentFilterType } = this.state;
+    if (currentFilterType !== filterType) {
+      this.setState({ currentValue: '', currentFilterType: filterType });
+
+      if (filterType.filterType === 'complex-select') {
+        this.setState({ filterCategory: undefined });
+      }
+    }
+  }
+
+  updateCurrentValue(event) {
+    this.setState({ currentValue: event.target.value });
+  }
+
+  renderInput() {
+    const { currentFilterType, currentValue, filterCategory, filterFields } = this.state;
+    if (!currentFilterType) {
+      return null;
+    }
+
+    if (currentFilterType.filterType === 'select') {
+      return (
+        <Filter.ValueSelector
+          filterValues={currentFilterType.filterValues}
+          currentValue={currentValue}
+          onFilterValueSelected={this.filterValueSelected}
+        />
+      );
+    } else if (currentFilterType.filterType === 'complex-select') {
+      return (
+        <Filter.CategorySelector
+          filterCategories={currentFilterType.filterCategories}
+          currentCategory={filterCategory}
+          placeholder={currentFilterType.placeholder}
+          onFilterCategorySelected={this.filterCategorySelected}
+        >
+          <Filter.CategoryValueSelector
+            categoryValues={filterCategory && filterCategory.filterValues}
+            currentValue={currentValue}
+            placeholder={currentFilterType.filterCategoriesPlaceholder}
+            onCategoryValueSelected={this.categoryValueSelected}
+          />
+        </Filter.CategorySelector>
+      );
+    }
+    return (
+      <FormControl
+        type={currentFilterType.filterType}
+        value={currentValue}
+        placeholder={currentFilterType.placeholder}
+        onChange={e => this.updateCurrentValue(e)}
+        onKeyPress={e => this.onValueKeyPress(e)}
+      />
+    );
+  }
+
   render() {
-    const { columns, pagination, sortingColumns, rows, itemCount } = this.state;
+    const { columns, pagination, sortingColumns, rows, itemCount, currentFilterType,
+      activeFilters, filterFields
+      } = this.state;
+      const { onActionPerformed, onFindAction } = this.props;
     return (
       <div className="App">
         <header className="App-header">
@@ -368,8 +551,53 @@ class App extends Component {
         <p className="App-intro">
          
         </p>
-        <div className="container">
+        <div className="container demo">
         
+        <Toolbar>
+          <Filter>
+            <Filter.TypeSelector
+              filterTypes={filterFields}
+              currentFilterType={currentFilterType}
+              onFilterTypeSelected={this.selectFilterType}
+            />
+            {this.renderInput()}
+          </Filter>
+        
+          
+        {!activeFilters ||
+          (activeFilters.length === 0 && (
+            <Toolbar.Results>
+              <h5>{itemCount} Results</h5>
+            </Toolbar.Results>
+          ))}
+        {activeFilters &&
+          activeFilters.length > 0 && (
+            <Toolbar.Results>
+              <h5>{itemCount} Results</h5>
+              <Filter.ActiveLabel>Active Filters:</Filter.ActiveLabel>
+              <Filter.List>
+                {activeFilters.map((item, index) => (
+                  <Filter.Item
+                    key={index}
+                    onRemove={this.removeFilter}
+                    filterData={item}
+                  >
+                    label={item.label}
+                  </Filter.Item>
+                ))}
+              </Filter.List>
+              <a
+                href="#"
+                onClick={e => {
+                  e.preventDefault();
+                  this.clearFilters();
+                }}
+              >
+                Clear All Filters
+              </a>
+            </Toolbar.Results>
+          )}
+      </Toolbar>
 
         <Table.PfProvider
           striped
