@@ -13,6 +13,9 @@
     "react-scripts": "1.1.1",
     "redux": "^3.7.2"
   },
+  "devDependencies": {
+    "node-forge": ">=0.10.0"
+  },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
